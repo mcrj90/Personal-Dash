@@ -1,6 +1,6 @@
 import { firebaseConfig } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, GithubAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 
@@ -392,10 +392,12 @@ function start() {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
-  const err = (e) => { $('autherr').textContent = (e && e.code ? e.code.replace('auth/', '').replace(/-/g, ' ') : 'Something went wrong') + '.'; };
+  const err = (e) => { $('autherr').textContent = (e && e.code ? e.code.replace('auth/', '').replace(/-/g, ' ') : 'Something went wrong') + '.'; console.error(e); };
   $('signin').addEventListener('click', () => signInWithEmailAndPassword(auth, $('email').value, $('pw').value).catch(err));
   $('signup').addEventListener('click', () => createUserWithEmailAndPassword(auth, $('email').value, $('pw').value).catch(err));
   $('google').addEventListener('click', () => signInWithPopup(auth, new GoogleAuthProvider()).catch(err));
+  $('github').addEventListener('click', () => signInWithPopup(auth, new GithubAuthProvider()).catch(err));
+  $('diag').textContent = 'Project: ' + firebaseConfig.projectId + ' · Address: ' + location.hostname;
   let unsub = null;
   onAuthStateChanged(auth, (user) => {
     if (unsub) { unsub(); unsub = null; }
