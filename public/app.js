@@ -190,17 +190,22 @@ function parseICS(text, days) {
 
 
 // ---------- Automatic calendar refresh (via /api/calendar) ----------
-let lastCal = null;
+let lastCal = null, calMsg = '';
 async function refreshCalendar() {
   if (!auth || !auth.currentUser || !state) return;
   try {
     const token = await auth.currentUser.getIdToken();
     const r = await fetch('/api/calendar', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' });
-    if (!r.ok) return;
+    if (!r.ok) {
+      let why = ''; try { why = (await r.json()).error || ''; } catch (e) { /* not JSON */ }
+      calMsg = r.status === 404 ? 'The calendar function isn’t on your site yet (no api folder).' : 'Calendar update failed (' + r.status + '): ' + (why || 'unknown reason');
+      render(); return;
+    }
     const ev = parseICS(await r.text(), 14);
+    calMsg = '';
     lastCal = new Date();
     if (JSON.stringify(ev) !== JSON.stringify(state.calendar)) { state.calendar = ev; change(); } else render();
-  } catch (e) { /* keep showing the last saved calendar */ }
+  } catch (e) { calMsg = 'Calendar update failed: could not reach the calendar function.'; render(); }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshCalendar(); });
 setInterval(refreshCalendar, 15 * 60 * 1000);
@@ -252,7 +257,7 @@ function pToday() {
     h('div', { class: 'lx-grid' },
       card(COLORS.R, 'My day', 'Things you’re planning to get to', taskList('My day')),
       h('div', { style: 'display:grid;gap:16px' },
-        card(COLORS.S, 'This week', lastCal ? 'From your Apple calendar, updated ' + lastCal.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'From your Apple calendar',
+        card(COLORS.S, 'This week', calMsg ? calMsg : lastCal ? 'From your Apple calendar, updated ' + lastCal.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'From your Apple calendar',
           cal.length ? h('div', {}, cal.map((e) => h('div', { class: 'lx-item' }, h('span', { class: 'lx-muted' }, dayFmt(uDate(e.date))), h('span', {}, e.start), h('span', {}, e.title), e.location ? h('span', { class: 'lx-muted' }, e.location) : null))) : h('span', { class: 'lx-empty' }, 'Nothing scheduled. Import your calendar below.'),
           h('div', { class: 'lx-actions' }, h('button', { type: 'button', class: 'lx-btn ghost', on: { click: () => file.click() } }, 'Import calendar (.ics)'), file)),
         card(COLORS.D, 'Supplements', 'Common guidance; follow product labels', sup.length ? table(['item', 'time', 'how'], sup) : h('span', { class: 'lx-empty' }, 'Add them under Settings.')))));
